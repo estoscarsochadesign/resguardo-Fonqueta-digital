@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resguardo Indígena Muisca de Fonquetá y Cerca de Piedra Digital - Resguardo Fonquetá</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        /* Estilos CSS - Interfaz limpia y moderna */
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; background-color: #f4f4f9; }
+        
+        #sidebar { width: 350px; background: #fff; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 1000; overflow-y: auto; }
+        #map-container { flex-grow: 1; position: relative; }
+        #map { height: 100%; width: 100%; }
+        
+        h1 { font-size: 1.5rem; color: #2c3e50; border-bottom: 2px solid #27ae60; padding-bottom: 10px; }
+        h2 { font-size: 1.2rem; color: #34495e; margin-top: 20px; }
+        p { font-size: 0.9rem; color: #7f8c8d; line-height: 1.5; }
+        
+        /* Estilos del Formulario */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; color: #2c3e50;}
+        .form-group input, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box;}
+        button { background-color: #27ae60; color: white; border: none; padding: 10px 15px; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1rem;}
+        button:hover { background-color: #2ecc71; }
+
+        /* Estilos del Pop-up del mapa */
+        .leaflet-popup-content h3 { margin: 0 0 5px 0; color: #d35400; font-size: 1.1rem;}
+        .leaflet-popup-content p { margin: 0 0 10px 0; font-size: 0.9rem; color: #333;}
+        .leaflet-popup-content audio { width: 100%; height: 30px; }
+        .tag { display: inline-block; background: #f39c12; color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem; margin-bottom: 5px;}
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h1>⛰️ Resguardo Digital</h1>
+        <p><strong>Resguardo de Fonquetá y Cerca de Piedra.</strong><br>Repositorio geográfico para la preservación de la memoria ancestral frente a la expansión urbana.</p>
+        
+        <h2>Sembrar Memoria</h2>
+        <p>Ingresa un nuevo relato etnográfico georreferenciado:</p>
+        
+        <div class="form-group">
+            <label>Título del Relato:</label>
+            <input type="text" id="tituloInput" placeholder="Ej: La huerta de mi abuelo">
+        </div>
+        <div class="form-group">
+            <label>Testimonio (Análisis Crítico):</label>
+            <textarea id="descInput" rows="4" placeholder="Describe lo que había en este lugar antes de las urbanizaciones..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>Coordenadas (Lat, Lng):</label>
+            <input type="text" id="coordInput" placeholder="Ej: 4.8636, -74.0533">
+        </div>
+        <button onclick="agregarNodo()">📍 Guardar en el Mapa</button>
+    </div>
+
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
+
+    <script>
+        // 1. Inicializar el mapa centrado en Chía (Cundinamarca)
+        const map = L.map('map').setView([4.8650, -74.0580], 14);
+
+        // 2. Cargar la capa base del mapa (OpenStreetMap gratuito)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors | Proyecto Etnográfico: Resguardo Digital'
+        }).addTo(map);
+
+        // 3. Base de Datos Simulada (Hallazgos de tus entrevistas)
+        const baseDeDatosMuisca = [
+            {
+                lat: 4.8601, 
+                lng: -74.0450, 
+                titulo: "Desplazamiento por Urbanizaciones",
+                categoria: "Territorio Perdido",
+                relato: "Aquí, donde hoy vemos este gran centro comercial y conjuntos cerrados, mis abuelos cultivaban maíz. El cemento nos quitó la soberanía alimentaria y nos volvió empleados de servicios.",
+                audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" // Audio de prueba
+            },
+            {
+                lat: 4.8720, 
+                lng: -74.0680, 
+                titulo: "Faldas del Cerro Majuy",
+                categoria: "Sitio Sagrado",
+                relato: "El Majuy sigue siendo nuestro referente espiritual, pero las faldas de la montaña están siendo devoradas por nuevas casas. Los jóvenes ya no suben a agradecer, solo miran las pantallas.",
+                audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+            }
+        ];
+
+        // 4. Función para renderizar los nodos en el mapa
+        function cargarNodos() {
+            baseDeDatosMuisca.forEach(nodo => {
+                crearMarcador(nodo.lat, nodo.lng, nodo.titulo, nodo.categoria, nodo.relato, nodo.audio);
+            });
+        }
+
+        // Función auxiliar para crear el marcador y el Pop-up (Ventana de Memoria)
+        function crearMarcador(lat, lng, titulo, categoria, relato, audioSrc) {
+            const popupContent = `
+                <span class="tag">${categoria}</span>
+                <h3>${titulo}</h3>
+                <p><i>"${relato}"</i></p>
+                <audio controls src="${audioSrc}"></audio>
+                <p style="font-size: 0.75rem; color: gray; margin-top: 5px;">*Registro etnográfico de la comunidad de Fonquetá.</p>
+            `;
+            L.marker([lat, lng]).addTo(map).bindPopup(popupContent);
+        }
+
+        // 5. Función de Ingeniería: Agregar nuevos datos desde el formulario
+        function agregarNodo() {
+            const titulo = document.getElementById('tituloInput').value;
+            const relato = document.getElementById('descInput').value;
+            const coordsStr = document.getElementById('coordInput').value;
+
+            if(!titulo || !relato || !coordsStr) {
+                alert("Por favor, completa todos los campos del formulario etnográfico.");
+                return;
+            }
+
+            // Procesar las coordenadas
+            const coordsArray = coordsStr.split(',');
+            const lat = parseFloat(coordsArray[0]);
+            const lng = parseFloat(coordsArray[1]);
+
+            if(isNaN(lat) || isNaN(lng)) {
+                alert("Formato de coordenadas inválido. Usa: Latitud, Longitud (Ej: 4.86, -74.05)");
+                return;
+            }
+
+            // Agregar el marcador al mapa dinámicamente
+            crearMarcador(lat, lng, titulo, "Nueva Memoria", relato, "");
+            
+            // Limpiar formulario y centrar mapa
+            document.getElementById('tituloInput').value = '';
+            document.getElementById('descInput').value = '';
+            document.getElementById('coordInput').value = '';
+            map.setView([lat, lng], 15);
+        }
+
+        // Cargar los datos iniciales al abrir la página
+        cargarNodos();
+    </script>
+</body>
+</html>
